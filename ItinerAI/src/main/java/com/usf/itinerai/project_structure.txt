@@ -1,0 +1,11 @@
+com.usf.itinerai
+├── web/          TripController            → /api/trips, /api/trips/{id}
+│                 ItineraryItemController   → /api/trips/{id}/items, /api/trips/{id}/items/{itemId}
+│                 FeasibilityController     → POST /api/trips/{id}/feasibility
+│                 GlobalExceptionHandler    (@RestControllerAdvice → 404/400)
+│                 dto/  TripRequest, TripResponse, ItemRequest (+ subtypes), ItemResponse, ConflictResponse
+├── trip/         Trip, TripRepository, TripService, TripNotFoundException
+├── itinerary/    ItineraryDay, ItineraryItem (abstract), Activity, Reservation, Transportation, TravelMode
+├── location/     Location
+├── routing/      RouteService, GoogleRoutesService, RoutingProperties
+└── feasibility/  Constraint, Conflict, OverlapConstraint, TravelTimeConstraint, FeasibilityService
