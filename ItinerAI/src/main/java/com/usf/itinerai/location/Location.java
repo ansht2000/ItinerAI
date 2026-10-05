@@ -2,7 +2,7 @@ package com.usf.itinerai.location;
 
 import java.time.LocalTime;
 
-// a place an itinerary item happens at, with its daily operating hours; immutable once constructed
+// a place an itinerary item happens at, with optional daily operating hours; immutable once constructed
 public class Location {
 
     private final String name;
@@ -22,11 +22,9 @@ public class Location {
         if (!(longitude >= -180 && longitude <= 180)) {
             throw new IllegalArgumentException("longitude must be between -180 and 180");
         }
-        if (openTime == null || closeTime == null) {
-            throw new IllegalArgumentException("openTime and closeTime must not be null");
-        }
-        // known limitation: overnight (e.g. 18:00-02:00) and 24-hour places are rejected; out of scope for Milestone 1
-        if (!closeTime.isAfter(openTime)) {
+        // hours are optional; with either one missing the place is treated as always available
+        // known limitation: overnight hours (e.g. 18:00-02:00) are rejected; out of scope for Milestone 1
+        if (openTime != null && closeTime != null && !closeTime.isAfter(openTime)) {
             throw new IllegalArgumentException("closeTime must be after openTime");
         }
         this.name = name;
@@ -48,10 +46,12 @@ public class Location {
         return longitude;
     }
 
+    // null when no hours were given
     public LocalTime getOpenTime() {
         return openTime;
     }
 
+    // null when no hours were given
     public LocalTime getCloseTime() {
         return closeTime;
     }
