@@ -11,6 +11,20 @@ docker compose up -d
 
 `docker compose up -d` starts a local PostgreSQL that matches the defaults in `application.properties`. To use a different database, set `DB_URL`, `DB_USERNAME` and `DB_PASSWORD`.
 
+### Google Routes API key
+
+Travel times come from the Google Routes API. Put your key in the `GOOGLE_MAPS_API_KEY` environment variable before starting the app, either in your shell or in the IntelliJ run configuration under "Environment variables":
+
+```bash
+export GOOGLE_MAPS_API_KEY=your-key
+```
+
+```powershell
+$env:GOOGLE_MAPS_API_KEY = "your-key"
+```
+
+Never put a real key in `application.properties` or commit it. Without the variable the app still starts with a placeholder key, but travel-time lookups fail with "API key not valid". Tests never call Google, so they don't need a key.
+
 ## Tests
 
 ```bash
