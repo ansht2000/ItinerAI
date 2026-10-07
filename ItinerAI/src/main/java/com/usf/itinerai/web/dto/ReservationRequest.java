@@ -1,5 +1,6 @@
 package com.usf.itinerai.web.dto;
 
+import com.usf.itinerai.itinerary.Reservation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,4 +16,10 @@ public record ReservationRequest(
         @NotNull @Valid LocationRequest location,
         String confirmationCode,
         @Positive Integer partySize) implements ItemRequest {
+
+    @Override
+    public Reservation toItem(Long id) {
+        return new Reservation(id, title, location.toLocation(), startTime, endTime, notes, confirmationCode,
+                partySize);
+    }
 }

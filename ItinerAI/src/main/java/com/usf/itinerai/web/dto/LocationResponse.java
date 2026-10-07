@@ -1,6 +1,7 @@
 package com.usf.itinerai.web.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.usf.itinerai.location.Location;
 
 import java.time.LocalTime;
 
@@ -12,4 +13,9 @@ public record LocationResponse(
         double longitude,
         LocalTime openTime,
         LocalTime closeTime) {
+
+    public static LocationResponse from(Location location) {
+        return new LocationResponse(location.getName(), location.getLatitude(), location.getLongitude(),
+                location.getOpenTime(), location.getCloseTime());
+    }
 }

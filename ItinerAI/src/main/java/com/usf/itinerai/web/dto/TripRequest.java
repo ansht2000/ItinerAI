@@ -1,6 +1,7 @@
 package com.usf.itinerai.web.dto;
 
 import com.usf.itinerai.itinerary.TravelMode;
+import com.usf.itinerai.trip.Trip;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -14,4 +15,9 @@ public record TripRequest(
         @NotNull LocalDate date,
         @NotNull ZoneId timeZone,
         @NotNull TravelMode defaultTravelMode) {
+
+    // id is null for a new trip, or the id from the URL when replacing one
+    public Trip toTrip(Long id) {
+        return new Trip(id, name, destination, date, timeZone, defaultTravelMode);
+    }
 }
