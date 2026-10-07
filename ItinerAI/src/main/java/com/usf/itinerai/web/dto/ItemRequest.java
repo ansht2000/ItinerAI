@@ -2,6 +2,7 @@ package com.usf.itinerai.web.dto;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.usf.itinerai.itinerary.ItineraryItem;
 import jakarta.validation.constraints.AssertTrue;
 
 import java.time.LocalTime;
@@ -22,6 +23,9 @@ public sealed interface ItemRequest permits ActivityRequest, ReservationRequest,
     LocalTime endTime();
 
     String notes();
+
+    // id is null for a new item, or the id from the URL when replacing one
+    ItineraryItem toItem(Long id);
 
     // missing times are reported by @NotNull on each subtype, so only compare when both are present
     @AssertTrue(message = "startTime must be before endTime")

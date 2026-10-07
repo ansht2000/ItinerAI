@@ -1,5 +1,6 @@
 package com.usf.itinerai.web.dto;
 
+import com.usf.itinerai.location.Location;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -20,5 +21,9 @@ public record LocationRequest(
     @AssertTrue(message = "closeTime must be after openTime")
     public boolean isHoursValid() {
         return openTime == null || closeTime == null || closeTime.isAfter(openTime);
+    }
+
+    public Location toLocation() {
+        return new Location(name, latitude, longitude, openTime, closeTime);
     }
 }
