@@ -31,6 +31,20 @@ class TripTest {
     }
 
     @Test
+    void newTripHasNoId() {
+        assertThat(parisTrip().getId()).isNull();
+    }
+
+    @Test
+    void tripWithAnIdKeepsIt() {
+        Trip trip = new Trip(7L, "Paris day", "Paris", DATE, PARIS_TIME, TravelMode.TRANSIT);
+
+        assertThat(trip.getId()).isEqualTo(7L);
+        assertThat(trip.getName()).isEqualTo("Paris day");
+        assertThat(trip.getDefaultTravelMode()).isEqualTo(TravelMode.TRANSIT);
+    }
+
+    @Test
     void itineraryStartsEmpty() {
         assertThat(parisTrip().getItinerary().getItems()).isEmpty();
     }

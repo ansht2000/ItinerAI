@@ -1,10 +1,15 @@
 package com.usf.itinerai.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.time.LocalTime;
+
+// opening hours are left out of the JSON when the place has none
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record LocationResponse(
-        Long id,
         String name,
-        String address,
-        Double latitude,
-        Double longitude,
-        String placeId) {
+        double latitude,
+        double longitude,
+        LocalTime openTime,
+        LocalTime closeTime) {
 }

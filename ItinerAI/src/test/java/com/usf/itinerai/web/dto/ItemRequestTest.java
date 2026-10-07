@@ -22,14 +22,16 @@ class ItemRequestTest {
         ItemRequest item = mapper.readValue("""
                 {"type": "transportation", "title": "Metro to the Louvre",
                  "startTime": "09:00", "endTime": "09:30", "mode": "TRANSIT",
-                 "origin": {"name": "Hotel", "address": "1 Rue de Rivoli, Paris"},
-                 "destination": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376}}
+                 "origin": {"name": "Hotel", "latitude": 48.8566, "longitude": 2.3522},
+                 "destination": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376,
+                                 "openTime": "09:00", "closeTime": "18:00"}}
                 """, ItemRequest.class);
 
         assertThat(item).isInstanceOfSatisfying(TransportationRequest.class, transportation -> {
             assertThat(transportation.mode()).isEqualTo(TravelMode.TRANSIT);
             assertThat(transportation.startTime()).isEqualTo(LocalTime.of(9, 0));
             assertThat(transportation.destination().latitude()).isEqualTo(48.8606);
+            assertThat(transportation.destination().closeTime()).isEqualTo(LocalTime.of(18, 0));
         });
         assertThat(validator.validate(item)).isEmpty();
     }
@@ -38,16 +40,33 @@ class ItemRequestTest {
     void endBeforeStartIsRejected() {
         assertThat(violationPaths("""
                 {"type": "activity", "title": "Louvre", "startTime": "12:00", "endTime": "11:00",
-                 "location": {"name": "Louvre", "address": "Rue de Rivoli, Paris"}}
+                 "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376}}
                 """)).containsExactly("timeRangeValid");
     }
 
     @Test
-    void locationMustBeFindable() {
+    void locationNeedsBothCoordinates() {
         assertThat(violationPaths("""
                 {"type": "reservation", "title": "Lunch", "startTime": "12:00", "endTime": "13:00",
                  "location": {"name": "Somewhere", "latitude": 48.86}}
-                """)).containsExactly("location.locatable");
+                """)).containsExactly("location.longitude");
+    }
+
+    @Test
+    void coordinatesMustBeInRange() {
+        assertThat(violationPaths("""
+                {"type": "activity", "title": "Louvre", "startTime": "10:00", "endTime": "11:00",
+                 "location": {"name": "Louvre", "latitude": 95.0, "longitude": 2.3376}}
+                """)).containsExactly("location.latitude");
+    }
+
+    @Test
+    void closeTimeMustBeAfterOpenTime() {
+        assertThat(violationPaths("""
+                {"type": "activity", "title": "Louvre", "startTime": "10:00", "endTime": "11:00",
+                 "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376,
+                              "openTime": "18:00", "closeTime": "09:00"}}
+                """)).containsExactly("location.hoursValid");
     }
 
     @Test
