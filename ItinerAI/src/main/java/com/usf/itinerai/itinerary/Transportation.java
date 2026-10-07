@@ -13,7 +13,13 @@ public class Transportation extends ItineraryItem {
     // notes is optional and may be null
     public Transportation(String title, Location location, LocalTime startTime, LocalTime endTime, String notes,
                           Location origin, TravelMode mode) {
-        super(title, location, startTime, endTime, notes);
+        this(null, title, location, startTime, endTime, notes, origin, mode);
+    }
+
+    // same as above, plus the database id (null for transportation that hasn't been saved yet)
+    public Transportation(Long id, String title, Location location, LocalTime startTime, LocalTime endTime,
+                          String notes, Location origin, TravelMode mode) {
+        super(id, title, location, startTime, endTime, notes);
         if (origin == null) {
             throw new IllegalArgumentException("origin must not be null");
         }

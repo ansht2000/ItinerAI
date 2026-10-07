@@ -11,7 +11,13 @@ public class Activity extends ItineraryItem {
     // notes and category are optional and may be null
     public Activity(String title, Location location, LocalTime startTime, LocalTime endTime, String notes,
                     String category) {
-        super(title, location, startTime, endTime, notes);
+        this(null, title, location, startTime, endTime, notes, category);
+    }
+
+    // same as above, plus the database id (null for an activity that hasn't been saved yet)
+    public Activity(Long id, String title, Location location, LocalTime startTime, LocalTime endTime, String notes,
+                    String category) {
+        super(id, title, location, startTime, endTime, notes);
         this.category = category;
     }
 
