@@ -52,6 +52,7 @@ class TravelTimeConstraintTest {
         trip.addItem(lunch);
 
         assertThat(constraintWithTravelTime(25).check(trip)).containsExactly(new Conflict(
+                ConflictType.INSUFFICIENT_TRAVEL_TIME,
                 "not enough time to get from \"Museum\" (ends 11:00) to \"Lunch\" (starts 11:10) by WALK: "
                         + "25 min needed, 10 min available, 15 min short",
                 List.of(museum, lunch)));
@@ -66,6 +67,7 @@ class TravelTimeConstraintTest {
         trip.addItem(lunch);
 
         assertThat(constraintWithTravelTime(15).check(trip)).containsExactly(new Conflict(
+                ConflictType.INSUFFICIENT_TRAVEL_TIME,
                 "not enough time to get from \"Museum\" (ends 11:00) to \"Lunch\" (starts 11:00) by WALK: "
                         + "15 min needed, 0 min available, 15 min short",
                 List.of(museum, lunch)));

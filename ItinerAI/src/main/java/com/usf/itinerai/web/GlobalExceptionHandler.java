@@ -1,5 +1,6 @@
 package com.usf.itinerai.web;
 
+import com.usf.itinerai.routing.RoutingException;
 import com.usf.itinerai.trip.ItemNotFoundException;
 import com.usf.itinerai.trip.TripNotFoundException;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +26,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler({TripNotFoundException.class, ItemNotFoundException.class})
     public ProblemDetail handleNotFound(RuntimeException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    // the routing API failed (e.g. a bad API key or an outage), so travel times couldn't be checked
+    @ExceptionHandler(RoutingException.class)
+    public ProblemDetail handleRoutingFailure(RoutingException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, e.getMessage());
     }
 
     // a domain class rejected a value that request validation let through
