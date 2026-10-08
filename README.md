@@ -13,17 +13,15 @@ docker compose up -d
 
 ### Google Routes API key
 
-Travel times come from the Google Routes API. Put your key in the `GOOGLE_MAPS_API_KEY` environment variable before starting the app, either in your shell or in the IntelliJ run configuration under "Environment variables":
+Travel times come from the Google Routes API. The easiest way to give the app your key is a file named `.env` in the `ItinerAI/` folder (next to `pom.xml`) containing one line:
 
-```bash
-export GOOGLE_MAPS_API_KEY=your-key
+```
+GOOGLE_MAPS_API_KEY=your-key
 ```
 
-```powershell
-$env:GOOGLE_MAPS_API_KEY = "your-key"
-```
+`.env` is git-ignored, so it is never committed. Alternatively, set `GOOGLE_MAPS_API_KEY` as an environment variable in your shell or in the IntelliJ run configuration; an environment variable wins over `.env`.
 
-Never put a real key in `application.properties` or commit it. Without the variable the app still starts with a placeholder key, but travel-time lookups fail with "API key not valid". Tests never call Google, so they don't need a key.
+Never put a real key in `application.properties` or commit it. Without a key the app still starts with a placeholder, but travel-time lookups fail with "API key not valid". CI gets the key from the `GOOGLE_ROUTES_API_KEY` repository secret.
 
 ## Tests
 
