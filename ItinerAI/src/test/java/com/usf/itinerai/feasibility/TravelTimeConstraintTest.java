@@ -58,6 +58,20 @@ class TravelTimeConstraintTest {
     }
 
     @Test
+    void backToBackItemsAtDifferentPlacesAreReported() {
+        Trip trip = parisTrip();
+        Activity museum = activity("Museum", LOUVRE, "10:00", "11:00");
+        Activity lunch = activity("Lunch", CAFE, "11:00", "12:00");
+        trip.addItem(museum);
+        trip.addItem(lunch);
+
+        assertThat(constraintWithTravelTime(15).check(trip)).containsExactly(new Conflict(
+                "not enough time to get from \"Museum\" (ends 11:00) to \"Lunch\" (starts 11:00) by WALK: "
+                        + "15 min needed, 0 min available, 15 min short",
+                List.of(museum, lunch)));
+    }
+
+    @Test
     void pairWithNoRouteIsSkipped() {
         Trip trip = parisTrip();
         trip.addItem(activity("Museum", LOUVRE, "10:00", "11:00"));
