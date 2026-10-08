@@ -6,6 +6,7 @@ import com.usf.itinerai.itinerary.TravelMode;
 import com.usf.itinerai.location.Location;
 import com.usf.itinerai.routing.RouteService;
 import com.usf.itinerai.trip.Trip;
+import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 // flags consecutive items without enough time to travel between them
+@Component
 public class TravelTimeConstraint implements Constraint {
 
     private final RouteService routeService;
@@ -44,7 +46,8 @@ public class TravelTimeConstraint implements Constraint {
             }
             Duration gap = Duration.between(first.getEndTime(), second.getStartTime());
             if (gap.compareTo(travelTime.get()) < 0) {
-                conflicts.add(new Conflict(describe(first, second, mode, travelTime.get(), gap), List.of(first, second)));
+                conflicts.add(new Conflict(ConflictType.INSUFFICIENT_TRAVEL_TIME,
+                        describe(first, second, mode, travelTime.get(), gap), List.of(first, second)));
             }
         }
         return conflicts;

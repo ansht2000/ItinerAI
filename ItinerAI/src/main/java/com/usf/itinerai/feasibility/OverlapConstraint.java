@@ -2,11 +2,13 @@ package com.usf.itinerai.feasibility;
 
 import com.usf.itinerai.itinerary.ItineraryItem;
 import com.usf.itinerai.trip.Trip;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
 // flags every pair of items whose time windows intersect; items that only touch (one ends as the next starts) are fine
+@Component
 public class OverlapConstraint implements Constraint {
 
     @Override
@@ -21,7 +23,8 @@ public class OverlapConstraint implements Constraint {
                 if (!second.getStartTime().isBefore(first.getEndTime())) {
                     break;
                 }
-                conflicts.add(new Conflict(describe(first) + " overlaps " + describe(second), List.of(first, second)));
+                conflicts.add(new Conflict(ConflictType.OVERLAP, describe(first) + " overlaps " + describe(second),
+                        List.of(first, second)));
             }
         }
         return conflicts;

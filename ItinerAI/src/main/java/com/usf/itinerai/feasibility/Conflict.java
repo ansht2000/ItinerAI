@@ -4,10 +4,14 @@ import com.usf.itinerai.itinerary.ItineraryItem;
 
 import java.util.List;
 
-// one problem a constraint found, with the items involved (e.g. the two items that overlap)
-public record Conflict(String message, List<ItineraryItem> items) {
+// one problem a constraint found: its kind, a readable explanation, and the items involved
+// (e.g. the two items that overlap)
+public record Conflict(ConflictType type, String message, List<ItineraryItem> items) {
 
     public Conflict {
+        if (type == null) {
+            throw new IllegalArgumentException("type must not be null");
+        }
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("message must not be null or blank");
         }

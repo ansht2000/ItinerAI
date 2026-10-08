@@ -1,0 +1,223 @@
+# ItinerAI demo requests, for IntelliJ's HTTP Client (click the run arrow next to each request).
+#
+# Before running:
+#   1. docker compose up -d        (local Postgres, from this folder)
+#   2. start the app               (IntelliJ, or ./mvnw spring-boot:run); the Google key comes from .env
+#
+# Run the requests top to bottom: the "> {% ... %}" lines save ids from responses for later requests.
+# The feasibility checks call the real Google Routes API, so exact minutes may differ a little from the comments.
+# Walking is the default mode on purpose: it doesn't depend on the time of day, unlike transit.
+
+@host = http://localhost:8080
+
+
+### ---------- 1. Plan a day in Paris ----------
+
+### Create the trip -> 201, with the new trip's id
+POST {{host}}/api/trips
+Content-Type: application/json
+
+{
+  "name": "Paris day",
+  "destination": "Paris",
+  "date": "2026-11-01",
+  "timeZone": "Europe/Paris",
+  "defaultTravelMode": "WALK"
+}
+
+> {% client.global.set("tripId", response.body.id); %}
+
+### Morning at the Louvre
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Louvre",
+  "startTime": "10:00",
+  "endTime": "12:00",
+  "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376, "openTime": "09:00", "closeTime": "18:00"},
+  "category": "art",
+  "notes": "Book tickets ahead"
+}
+
+> {% client.global.set("louvreId", response.body.id); %}
+
+### Lunch in Montmartre, only 20 minutes after the Louvre (it's about a 50-minute walk)
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "reservation",
+  "title": "Lunch at Le Consulat",
+  "startTime": "12:20",
+  "endTime": "13:30",
+  "location": {"name": "Le Consulat", "latitude": 48.8866, "longitude": 2.3404},
+  "confirmationCode": "ABC123",
+  "partySize": 2
+}
+
+> {% client.global.set("lunchId", response.body.id); %}
+
+### Sacre-Coeur, a few minutes' walk from lunch
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Sacré-Cœur",
+  "startTime": "13:45",
+  "endTime": "15:00",
+  "location": {"name": "Sacré-Cœur", "latitude": 48.8867, "longitude": 2.3431, "openTime": "06:30", "closeTime": "22:30"},
+  "category": "history"
+}
+
+> {% client.global.set("sacreCoeurId", response.body.id); %}
+
+### Metro across town for the evening (a transportation item: origin, destination and mode)
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "transportation",
+  "title": "Metro to the Eiffel Tower",
+  "startTime": "18:30",
+  "endTime": "19:15",
+  "origin": {"name": "Sacré-Cœur", "latitude": 48.8867, "longitude": 2.3431},
+  "destination": {"name": "Eiffel Tower", "latitude": 48.8584, "longitude": 2.2945},
+  "mode": "TRANSIT"
+}
+
+### Evening at the Eiffel Tower
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Eiffel Tower at night",
+  "startTime": "19:15",
+  "endTime": "21:00",
+  "location": {"name": "Eiffel Tower", "latitude": 48.8584, "longitude": 2.2945, "openTime": "09:30", "closeTime": "23:45"},
+  "category": "sightseeing"
+}
+
+> {% client.global.set("eiffelId", response.body.id); %}
+
+### The whole trip, items sorted by start time
+GET {{host}}/api/trips/{{tripId}}
+
+
+### ---------- 2. Check whether the day works ----------
+
+### Check 1 -> not feasible: INSUFFICIENT_TRAVEL_TIME from the Louvre to lunch (about 50 min needed, 20 available)
+POST {{host}}/api/trips/{{tripId}}/feasibility
+
+### Fix it: move lunch to 13:15 (PUT replaces the whole item)
+PUT {{host}}/api/trips/{{tripId}}/items/{{lunchId}}
+Content-Type: application/json
+
+{
+  "type": "reservation",
+  "title": "Lunch at Le Consulat",
+  "startTime": "13:15",
+  "endTime": "14:15",
+  "location": {"name": "Le Consulat", "latitude": 48.8866, "longitude": 2.3404},
+  "confirmationCode": "ABC123",
+  "partySize": 2
+}
+
+### Check 2 -> still not feasible: the later lunch now OVERLAPs Sacre-Coeur (13:45-15:00)
+POST {{host}}/api/trips/{{tripId}}/feasibility
+
+### Fix that too: visit Sacre-Coeur after lunch
+PUT {{host}}/api/trips/{{tripId}}/items/{{sacreCoeurId}}
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Sacré-Cœur",
+  "startTime": "14:30",
+  "endTime": "16:00",
+  "location": {"name": "Sacré-Cœur", "latitude": 48.8867, "longitude": 2.3431, "openTime": "06:30", "closeTime": "22:30"},
+  "category": "history"
+}
+
+### Check 3 -> feasible, no conflicts
+POST {{host}}/api/trips/{{tripId}}/feasibility
+
+
+### ---------- 3. The rest of the API ----------
+
+### Every trip
+GET {{host}}/api/trips
+
+### Just the trip's items
+GET {{host}}/api/trips/{{tripId}}/items
+
+### One item
+GET {{host}}/api/trips/{{tripId}}/items/{{louvreId}}
+
+### Rename the trip (PUT replaces the trip's own fields; its items stay)
+PUT {{host}}/api/trips/{{tripId}}
+Content-Type: application/json
+
+{
+  "name": "Paris day, fixed",
+  "destination": "Paris",
+  "date": "2026-11-01",
+  "timeZone": "Europe/Paris",
+  "defaultTravelMode": "WALK"
+}
+
+### Delete one item -> 204
+DELETE {{host}}/api/trips/{{tripId}}/items/{{eiffelId}}
+
+
+### ---------- 4. Errors ----------
+
+### Unknown trip -> 404, "trip 999999 not found"
+GET {{host}}/api/trips/999999
+
+### Invalid trip -> 400; "errors" names each bad field (here name and date)
+POST {{host}}/api/trips
+Content-Type: application/json
+
+{
+  "name": "",
+  "destination": "Paris",
+  "timeZone": "Europe/Paris",
+  "defaultTravelMode": "WALK"
+}
+
+### Item that ends before it starts -> 400 (timeRangeValid)
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Backwards",
+  "startTime": "12:00",
+  "endTime": "11:00",
+  "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376}
+}
+
+### Unknown item type -> 400
+POST {{host}}/api/trips/{{tripId}}/items
+Content-Type: application/json
+
+{
+  "type": "tour",
+  "title": "Bus tour",
+  "startTime": "17:00",
+  "endTime": "18:00",
+  "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376}
+}
+
+
+### ---------- 5. Clean up ----------
+
+### Delete the trip and all its items -> 204
+DELETE {{host}}/api/trips/{{tripId}}
+
+### Gone -> 404
+GET {{host}}/api/trips/{{tripId}}

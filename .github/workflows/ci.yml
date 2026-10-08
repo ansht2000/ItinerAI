@@ -20,3 +20,5 @@ jobs:
           cache: maven
       # runs unit and integration tests; Testcontainers uses the runner's Docker
       - run: ./mvnw -B verify
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}

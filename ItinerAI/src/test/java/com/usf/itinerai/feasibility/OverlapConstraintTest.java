@@ -36,7 +36,7 @@ class OverlapConstraintTest {
         trip.addItem(museum);
         trip.addItem(lunch);
 
-        assertThat(constraint.check(trip)).containsExactly(new Conflict(
+        assertThat(constraint.check(trip)).containsExactly(new Conflict(ConflictType.OVERLAP,
                 "\"Museum\" (10:00-11:30) overlaps \"Lunch\" (11:00-12:00)", List.of(museum, lunch)));
     }
 
