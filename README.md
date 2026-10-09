@@ -34,3 +34,35 @@ Tests start their own throwaway PostgreSQL through Testcontainers, so Docker mus
 ## Database migrations
 
 The schema is managed by Flyway. Add migrations to `ItinerAI/src/main/resources/db/migration` named `V1__description.sql`, `V2__description.sql`, and so on. Never edit a migration that has already been merged; add a new one instead.
+
+## Neysa AI Usage
+
+I used Claude Code mainly for checking my scaffolding of the domain model and constraints, generating tests,
+and debugging build/infrastructure issues (a missing validation dependency, missing Testcontainers dependencies).
+
+**Domain model.** Claude Code built out `ItineraryItem` and its subclasses iteratively — adding `title`/`notes` once I confirmed
+(by checking the DTOs) all three item types needed them, then `id` once persistence was being designed. I made the call on where each
+field lived (e.g. `category` on `Activity` only, not the shared base).
+
+**`TravelTimeConstraint`.** This took the most iteration. Claude Code caught that measuring travel time to an item's `location`
+would misfire whenever the second item was a `Transportation` leg, since `location` there is the destination, not where the
+traveler currently is — we fixed this by measuring to its `origin` instead. I also decided `TravelTimeConstraint` should skip
+pairs `OverlapConstraint` already flagged, rather than double-reporting the same problem two ways.
+
+**Review process.** I caught a naming mismatch between a new `Violation` record and the existing `ConflictResponse` DTO and renamed it to
+`Conflict` before it caused problems later. I asked Claude Code to confirm a specific edge case (two back-to-back items with zero gap) was
+actually tested — it wasn't, so I had it add a test for it. I made the scope calls Claude Code flagged but didn't resolve on its own, like
+deferring overnight operating hours as a known limitation.
+
+
+## Ansh AI Usage
+I mainly used AI to navigate the unfamiliar (to me) Spring framework and the Google Routes API, and write tests.
+
+My assistant of choice was Claude Code, mostly running Opus 5.5 on high or on max.
+
+The GoogleRoutesService and all of the controllers and DTOs were substantially assisted by Claude Code.
+
+I always have Claude a plan on what I wanted it to implement, and, before it wrote any code,
+I would have it repeat the plan back to me in a step-by-step list to make sure it was planning
+on doing exactly what I wanted it to. After it wrote the code I approved it to write, I would read
+through the code, and ask it clarifying questions about how it wrote to the code and choices that it made.
