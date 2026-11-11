@@ -48,8 +48,9 @@ public class OptimizationService {
         if (startingConflicts.isEmpty() && askedForNothing) {
             result = new ItineraryAgent.Result(true, NOTHING_TO_FIX);
         } else {
+            // before the run, the draft's changes are exactly the earlier proposal's (none on a first request)
             result = agent.run(draft, OptimizerPrompt.firstMessage(draft, startingConflicts, command.goal(),
-                    command.feedback(), !command.previousChanges().isEmpty()));
+                    command.feedback(), draft.changes()));
         }
         // the verdict comes from the feasibility check, not from anything the model said
         List<Conflict> conflictsAfter = feasibilityService.check(draft.toTrip());

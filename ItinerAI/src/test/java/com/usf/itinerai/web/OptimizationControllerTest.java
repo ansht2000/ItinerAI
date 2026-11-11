@@ -178,7 +178,8 @@ class OptimizationControllerTest {
         verify(modelClient).send(requests.capture());
         String firstMessage = JsonPath.read(body(requests.getValue()), "$.messages[0].content");
         assertThat(firstMessage).contains("\"Please don't move lunch\"")
-                .contains("already includes the earlier proposal's changes")
+                .contains("already includes the earlier proposal's changes to the saved schedule:")
+                .contains("- \"Louvre\": 10:00-12:00, now 09:20-11:20 (Leaves time to walk to lunch.)")
                 .contains("09:20-11:20 activity \"Louvre\"");
     }
 

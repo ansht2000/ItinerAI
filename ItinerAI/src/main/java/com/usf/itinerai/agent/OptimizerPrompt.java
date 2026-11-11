@@ -22,13 +22,15 @@ final class OptimizerPrompt {
             - Prefer shifting an item over shortening it, and shortening over removing it.
             - Follow the traveler's goal and all of their feedback.
             - When the day works and the goal is met, or nothing more can be done, tell the traveler in 2-3 sentences what you changed and why. Use item titles, not ids.
+            - When refining an earlier proposal, that summary covers every change from the traveler's saved schedule, including the ones kept from the earlier proposal.
             """;
 
     private OptimizerPrompt() {
     }
 
+    // earlierChanges are the previous proposal's changes when refining, so Claude knows the saved times too
     static String firstMessage(ItineraryDraft draft, List<Conflict> conflicts, String goal, List<String> feedback,
-                               boolean refining) {
+                               List<ProposedChange> earlierChanges) {
         Trip trip = draft.saved();
         StringBuilder text = new StringBuilder();
         text.append("Trip: \"").append(trip.getName()).append("\" in ").append(trip.getDestination())
@@ -44,8 +46,16 @@ final class OptimizerPrompt {
             text.append("Traveler's feedback on earlier proposals, oldest first:\n");
             feedback.forEach(message -> text.append("- ").append(quoted(message)).append("\n"));
         }
-        if (refining) {
-            text.append("The schedule below already includes the earlier proposal's changes.\n");
+        if (!earlierChanges.isEmpty()) {
+            text.append("The schedule below already includes the earlier proposal's changes to the saved schedule:\n");
+            for (ProposedChange change : earlierChanges) {
+                text.append("- \"").append(change.title()).append("\": ").append(change.before())
+                        .append(change.after() == null ? ", removed" : ", now " + change.after());
+                if (change.reason() != null) {
+                    text.append(" (").append(change.reason()).append(")");
+                }
+                text.append("\n");
+            }
         }
         text.append("\n").append(state(draft, conflicts));
         return text.toString();
