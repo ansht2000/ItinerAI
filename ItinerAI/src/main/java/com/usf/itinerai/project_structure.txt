@@ -8,4 +8,5 @@ com.usf.itinerai
 ├── itinerary/    ItineraryDay, ItineraryItem (abstract), Activity, Reservation, Transportation, TravelMode
 ├── location/     Location
 ├── routing/      RouteService, GoogleRoutesService, RoutingProperties
-└── feasibility/  Constraint, Conflict, OverlapConstraint, TravelTimeConstraint, FeasibilityService
+└── feasibility/  Constraint, Conflict, ConflictType, FeasibilityService,
+                  OverlapConstraint, TravelTimeConstraint, TransportationDurationConstraint, OperatingHoursConstraint
