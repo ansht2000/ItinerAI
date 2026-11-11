@@ -231,7 +231,7 @@ Built in PR 2. Claude proposes changes to a saved trip and the feasibility check
 4. **Apply.** Call `POST /optimize/apply` with the proposal's `changes`, then show the updated trip.
 5. **Discard.** Do nothing; the trip was never changed.
 
-Each optimize call takes tens of seconds and can run slightly past 90. Show progress, block repeat clicks, and only start a run when the user asks for one: every run costs money.
+**Wait time:** an optimize call usually takes under 10 seconds; in our test runs on the Paris day, optimize and refine each took 5–8 seconds. A harder trip can take longer, so allow up to about 90 seconds: the agent stops starting new rounds at 90, and a run can go slightly past that. Show progress, block repeat clicks, and only start a run when the user asks for one: every run costs money (about a cent).
 
 ### Optimize and refine
 

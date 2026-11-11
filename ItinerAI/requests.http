@@ -6,7 +6,7 @@
 #
 # Run the requests top to bottom: the "> {% ... %}" lines save ids from responses for later requests.
 # The feasibility checks call the real Google Routes API, so exact minutes may differ a little from the comments.
-# Section 6 asks the AI agent: it also needs ANTHROPIC_API_KEY in .env, and each optimize call takes tens of seconds.
+# Section 6 asks the AI agent: it also needs ANTHROPIC_API_KEY in .env. Each optimize call usually takes under 10 seconds.
 # Walking is the default mode on purpose: it doesn't depend on the time of day, unlike transit.
 
 @host = http://localhost:8080
@@ -324,14 +324,15 @@ Content-Type: application/json
 
 > {% client.global.set("agentChanges", JSON.stringify(response.body.changes)); %}
 
-### Refine it: the same goal, the previous proposal's changes, and every piece of feedback so far
+### Refine it: the same goal, the previous proposal's changes, and every piece of feedback so far.
+### Not starting before 10:00 means the Louvre visit has to get shorter to keep the lunch booking
 POST {{host}}/api/trips/{{agentTripId}}/optimize
 Content-Type: application/json
 
 {
   "goal": "Make the day work. I'd rather not rush.",
   "changes": {{agentChanges}},
-  "feedback": ["Keep at least two hours at the Louvre."]
+  "feedback": ["I'd rather not start before 10:00."]
 }
 
 > {% client.global.set("agentChanges", JSON.stringify(response.body.changes)); %}
