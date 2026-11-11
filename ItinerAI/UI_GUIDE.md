@@ -8,7 +8,7 @@ Everything the web UI needs from the backend: how to run it, where the UI's file
 |---|---|
 | Trips, itinerary items, feasibility check | On `main`, ready to use |
 | `OUTSIDE_OPERATING_HOURS` conflicts, check on transportation-leg durations | PR 1 (`AT/feature/checker-gaps`), in review |
-| AI agent endpoints (`/optimize`, `/optimize/apply`) | PR 2, due Nov 11. Until then, build against the example JSON in [The AI agent](#the-ai-agent). |
+| AI agent endpoints (`/optimize`, `/optimize/apply`) | PR 2 (`AT/feature/itinerary-agent`): built and tested. Calling Claude needs `ANTHROPIC_API_KEY` in `.env`; without it the endpoints answer 503, so the example JSON in [The AI agent](#the-ai-agent) still works as mock data. |
 
 ## Run the backend
 
@@ -221,7 +221,7 @@ Every place needs a latitude and longitude, and the backend has no place search:
 
 ## The AI agent
 
-Arrives with PR 2. Claude proposes changes to a saved trip and the feasibility check verifies them. Nothing is saved until the user clicks Apply.
+Built in PR 2. Claude proposes changes to a saved trip and the feasibility check verifies them. Nothing is saved until the user clicks Apply.
 
 ### The flow
 
@@ -251,7 +251,9 @@ Each optimize call takes tens of seconds and can run slightly past 90. Show prog
 | `lockedItemIds` | Optional. Ids of items the agent must not touch; all must belong to the trip (400 otherwise). Leave it out to lock every reservation; send `[]` to lock nothing. |
 | `allowRemovals` | Optional, default `false`. Whether the agent may drop items. |
 | `changes` | Refine only: the previous response's `changes`, sent back exactly as received |
-| `feedback` | Refine only: every feedback message so far, oldest first; each up to 500 characters |
+| `feedback` | Refine only: every feedback message so far, oldest first; each a non-empty string up to 500 characters |
+
+The body can also be left out entirely, which is the same as `{}`.
 
 Response (200):
 
@@ -315,13 +317,13 @@ The response has the same shape. Its `changes` are still compared with the saved
 { "changes": [ ...the proposal's changes, exactly as received... ] }
 ```
 
-It returns 200 with the updated trip, in the same shape as `GET /api/trips/{tripId}`. All the changes are written together, or none are. A 409 means the trip was edited after the proposal was made: nothing was written, so offer to run optimize again.
+It returns 200 with the updated trip, in the same shape as `GET /api/trips/{tripId}`. All the changes are written together, or none are; an empty `changes` list writes nothing. A 409 means the trip was edited after the proposal was made: nothing was written, so offer to run optimize again.
 
 ### Errors
 
 | Status | When |
 |---|---|
-| 400 | Goal or feedback over 500 characters, a locked id that isn't in the trip, or a malformed change |
+| 400 | Goal or feedback over 500 characters, a blank feedback message, a locked id that isn't in the trip, or a malformed change. `errors` keys look like `goal`, `feedback[0]`, `changes[0].afterValid` (a `REMOVE` with `after` times, or a `RESCHEDULE` without) and `changes[0].before.rangeValid`. |
 | 404 | Unknown trip |
 | 409 | The trip changed since the proposal (refine or apply) |
 | 502 | Google's travel-time service failed |
