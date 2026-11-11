@@ -6,6 +6,7 @@
 #
 # Run the requests top to bottom: the "> {% ... %}" lines save ids from responses for later requests.
 # The feasibility checks call the real Google Routes API, so exact minutes may differ a little from the comments.
+# Section 6 asks the AI agent: it also needs ANTHROPIC_API_KEY in .env. Each optimize call usually takes under 10 seconds.
 # Walking is the default mode on purpose: it doesn't depend on the time of day, unlike transit.
 
 @host = http://localhost:8080
@@ -255,3 +256,97 @@ DELETE {{host}}/api/trips/{{tripId}}
 
 ### Gone -> 404
 GET {{host}}/api/trips/{{tripId}}
+
+
+### ---------- 6. Let the agent fix the day ----------
+
+### A fresh copy of the broken morning
+POST {{host}}/api/trips
+Content-Type: application/json
+
+{
+  "name": "Paris day, agent",
+  "destination": "Paris",
+  "date": "2026-11-01",
+  "timeZone": "Europe/Paris",
+  "defaultTravelMode": "WALK"
+}
+
+> {% client.global.set("agentTripId", response.body.id); %}
+
+### Louvre, 10:00-12:00
+POST {{host}}/api/trips/{{agentTripId}}/items
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Louvre",
+  "startTime": "10:00",
+  "endTime": "12:00",
+  "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376, "openTime": "09:00", "closeTime": "18:00"},
+  "category": "art"
+}
+
+### Lunch at 12:20, about a 50-minute walk away (a reservation, so the agent won't move it unless it's unlocked)
+POST {{host}}/api/trips/{{agentTripId}}/items
+Content-Type: application/json
+
+{
+  "type": "reservation",
+  "title": "Lunch at Le Consulat",
+  "startTime": "12:20",
+  "endTime": "13:30",
+  "location": {"name": "Le Consulat", "latitude": 48.8866, "longitude": 2.3404},
+  "confirmationCode": "ABC123",
+  "partySize": 2
+}
+
+### Sacre-Coeur after lunch
+POST {{host}}/api/trips/{{agentTripId}}/items
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Sacré-Cœur",
+  "startTime": "13:45",
+  "endTime": "15:00",
+  "location": {"name": "Sacré-Cœur", "latitude": 48.8867, "longitude": 2.3431, "openTime": "06:30", "closeTime": "22:30"},
+  "category": "history"
+}
+
+### Ask the agent -> a proposal (changes with reasons, conflicts before and after); nothing is saved yet
+POST {{host}}/api/trips/{{agentTripId}}/optimize
+Content-Type: application/json
+
+{
+  "goal": "Make the day work. I'd rather not rush."
+}
+
+> {% client.global.set("agentChanges", JSON.stringify(response.body.changes)); %}
+
+### Refine it: the same goal, the previous proposal's changes, and every piece of feedback so far.
+### Not starting before 10:00 means the Louvre visit has to get shorter to keep the lunch booking
+POST {{host}}/api/trips/{{agentTripId}}/optimize
+Content-Type: application/json
+
+{
+  "goal": "Make the day work. I'd rather not rush.",
+  "changes": {{agentChanges}},
+  "feedback": ["I'd rather not start before 10:00."]
+}
+
+> {% client.global.set("agentChanges", JSON.stringify(response.body.changes)); %}
+
+### Apply the refined proposal -> 200 with the updated trip
+POST {{host}}/api/trips/{{agentTripId}}/optimize/apply
+Content-Type: application/json
+
+{
+  "changes": {{agentChanges}}
+}
+
+### Check the saved day -> feasible
+POST {{host}}/api/trips/{{agentTripId}}/feasibility
+
+### Clean up
+DELETE {{host}}/api/trips/{{agentTripId}}

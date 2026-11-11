@@ -23,13 +23,27 @@ GOOGLE_MAPS_API_KEY=your-key
 
 Never put a real key in `application.properties` or commit it. Without a key the app still starts with a placeholder, but travel-time lookups fail with "API key not valid". CI gets the key from the `GOOGLE_ROUTES_API_KEY` repository secret.
 
+### Claude API key (itinerary agent)
+
+The itinerary agent calls Claude through the Anthropic API. Put the key in the same `.env` file:
+
+```
+ANTHROPIC_API_KEY=your-key
+```
+
+Without it the app still starts and everything else works; only the agent's endpoints answer 503. API usage is billed to the key's Anthropic account, separately from any Claude subscription.
+
+## The itinerary agent
+
+`POST /api/trips/{tripId}/optimize` asks Claude (Sonnet 5.5) to fix a saved trip, and returns a proposal: the changes with a reason for each, the conflicts before and after, and the proposed day. Claude edits an in-memory copy through three tools (look up a travel time, move an item, remove an item), and the feasibility check verifies every edit. Nothing is saved until `POST /api/trips/{tripId}/optimize/apply`. Reservations are locked by default, and removing items needs the request's permission. See [UI_INFO.md](ItinerAI/UI_INFO.md) for the request and response JSON.
+
 ## Tests
 
 ```bash
 ./mvnw verify
 ```
 
-Tests start their own throwaway PostgreSQL through Testcontainers, so Docker must be running, but `docker compose` is not needed.
+Tests start their own throwaway PostgreSQL through Testcontainers, so Docker must be running, but `docker compose` is not needed. Claude is replaced by a scripted fake in every test except `ItineraryAgentLiveTest`, which calls the real API (a few cents a run) and is skipped unless `ANTHROPIC_API_KEY` is set, as in CI.
 
 ## Database migrations
 

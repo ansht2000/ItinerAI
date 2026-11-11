@@ -1,5 +1,7 @@
 package com.usf.itinerai.web;
 
+import com.usf.itinerai.agent.AgentUnavailableException;
+import com.usf.itinerai.agent.StaleProposalException;
 import com.usf.itinerai.routing.RoutingException;
 import com.usf.itinerai.trip.ItemNotFoundException;
 import com.usf.itinerai.trip.TripNotFoundException;
@@ -32,6 +34,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RoutingException.class)
     public ProblemDetail handleRoutingFailure(RoutingException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, e.getMessage());
+    }
+
+    // the Claude API can't be used right now (no key, outage, rate limit); everything else keeps working
+    @ExceptionHandler(AgentUnavailableException.class)
+    public ProblemDetail handleAgentUnavailable(AgentUnavailableException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
+    // the trip changed after the proposal was made, so nothing was written
+    @ExceptionHandler(StaleProposalException.class)
+    public ProblemDetail handleStaleProposal(StaleProposalException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
     // a domain class rejected a value that request validation let through
