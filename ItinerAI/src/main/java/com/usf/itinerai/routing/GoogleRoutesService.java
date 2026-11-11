@@ -3,16 +3,21 @@ package com.usf.itinerai.routing;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.usf.itinerai.itinerary.TravelMode;
 import com.usf.itinerai.location.Location;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 // RouteService backed by the Google Routes API (computeRoutes)
 @Service
@@ -24,10 +29,26 @@ public class GoogleRoutesService implements RouteService {
 
     private final RestClient restClient;
     private final String apiKey;
+    private final Duration cacheTtl;
+    private final Clock clock;
+    // answers from the last cacheTtl, so re-checking a schedule doesn't ask Google again about legs that didn't
+    // change; failed calls are never stored
+    private final Map<RouteKey, CachedTravelTime> cache = new ConcurrentHashMap<>();
 
+    @Autowired
     public GoogleRoutesService(RestClient.Builder restClientBuilder, RoutingProperties properties) {
+        this(restClientBuilder, properties, Clock.systemUTC());
+    }
+
+    // the clock lets tests move time forward to expire cached answers
+    GoogleRoutesService(RestClient.Builder restClientBuilder, RoutingProperties properties, Clock clock) {
+        if (properties.cacheTtl() == null) {
+            throw new IllegalArgumentException("cacheTtl must not be null");
+        }
         this.restClient = restClientBuilder.baseUrl(BASE_URL).build();
         this.apiKey = properties.googleApiKey();
+        this.cacheTtl = properties.cacheTtl();
+        this.clock = clock;
     }
 
     @Override
@@ -41,6 +62,24 @@ public class GoogleRoutesService implements RouteService {
             return Optional.of(Duration.ZERO);
         }
 
+        RouteKey key = RouteKey.of(origin, destination, mode);
+        Instant now = clock.instant();
+        CachedTravelTime cached = cache.get(key);
+        if (cached != null && now.isBefore(cached.expiresAt())) {
+            return Optional.ofNullable(cached.travelTime());
+        }
+
+        // a RoutingException leaves the cache untouched, so the next call tries Google again
+        Optional<Duration> travelTime = fetchTravelTime(origin, destination, mode);
+        if (cacheTtl.isPositive()) {
+            // drop expired answers first, so the cache only holds routes looked up recently
+            cache.values().removeIf(entry -> !now.isBefore(entry.expiresAt()));
+            cache.put(key, new CachedTravelTime(travelTime.orElse(null), now.plus(cacheTtl)));
+        }
+        return travelTime;
+    }
+
+    private Optional<Duration> fetchTravelTime(Location origin, Location destination, TravelMode mode) {
         // no departureTime: Google assumes leaving now, which only changes the answer for transit
         ComputeRoutesRequest request =
                 new ComputeRoutesRequest(Waypoint.at(origin), Waypoint.at(destination), googleMode(mode));
@@ -100,6 +139,19 @@ public class GoogleRoutesService implements RouteService {
             // not Google's JSON error format; fall back to the status text
         }
         return e.getStatusText();
+    }
+
+    // Location has no equals(), so the cache is keyed by the coordinates themselves
+    private record RouteKey(double originLatitude, double originLongitude, double destinationLatitude,
+                            double destinationLongitude, TravelMode mode) {
+        static RouteKey of(Location origin, Location destination, TravelMode mode) {
+            return new RouteKey(origin.getLatitude(), origin.getLongitude(), destination.getLatitude(),
+                    destination.getLongitude(), mode);
+        }
+    }
+
+    // travelTime is null when Google had no route for the mode
+    private record CachedTravelTime(Duration travelTime, Instant expiresAt) {
     }
 
     // JSON shapes for computeRoutes: https://developers.google.com/maps/documentation/routes/compute_route_directions
