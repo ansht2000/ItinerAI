@@ -145,6 +145,40 @@ Content-Type: application/json
 ### Check 3 -> feasible, no conflicts
 POST {{host}}/api/trips/{{tripId}}/feasibility
 
+### What about the Louvre first thing? Move it to 08:00-10:00, before it opens at 09:00
+PUT {{host}}/api/trips/{{tripId}}/items/{{louvreId}}
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Louvre",
+  "startTime": "08:00",
+  "endTime": "10:00",
+  "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376, "openTime": "09:00", "closeTime": "18:00"},
+  "category": "art",
+  "notes": "Book tickets ahead"
+}
+
+### Check 4 -> not feasible: OUTSIDE_OPERATING_HOURS, the Louvre isn't open until 09:00
+POST {{host}}/api/trips/{{tripId}}/feasibility
+
+### Fix it: start when it opens
+PUT {{host}}/api/trips/{{tripId}}/items/{{louvreId}}
+Content-Type: application/json
+
+{
+  "type": "activity",
+  "title": "Louvre",
+  "startTime": "09:00",
+  "endTime": "11:00",
+  "location": {"name": "Louvre", "latitude": 48.8606, "longitude": 2.3376, "openTime": "09:00", "closeTime": "18:00"},
+  "category": "art",
+  "notes": "Book tickets ahead"
+}
+
+### Check 5 -> feasible again
+POST {{host}}/api/trips/{{tripId}}/feasibility
+
 
 ### ---------- 3. The rest of the API ----------
 
