@@ -35,7 +35,7 @@ Without it the app still starts and everything else works; only the agent's endp
 
 ## The itinerary agent
 
-`POST /api/trips/{tripId}/optimize` asks Claude (Sonnet 5.5) to fix a saved trip, and returns a proposal: the changes with a reason for each, the conflicts before and after, and the proposed day. Claude edits an in-memory copy through three tools (look up a travel time, move an item, remove an item), and the feasibility check verifies every edit. Nothing is saved until `POST /api/trips/{tripId}/optimize/apply`. Reservations are locked by default, and removing items needs the request's permission. See [UI_GUIDE.md](ItinerAI/UI_GUIDE.md) for the request and response JSON.
+`POST /api/trips/{tripId}/optimize` asks Claude (Sonnet 5.5) to fix a saved trip, and returns a proposal: the changes with a reason for each, the conflicts before and after, and the proposed day. Claude edits an in-memory copy through three tools (look up a travel time, move an item, remove an item), and the feasibility check verifies every edit. Nothing is saved until `POST /api/trips/{tripId}/optimize/apply`. Reservations are locked by default, and removing items needs the request's permission. See [UI_INFO.md](ItinerAI/UI_INFO.md) for the request and response JSON.
 
 ## Tests
 
