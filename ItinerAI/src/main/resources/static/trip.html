@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ItinerAI – Trip</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <p><a href="index.html">← All trips</a></p>
+
+  <p id="loading">Loading trip…</p>
+
+  <!-- shown when the id is missing or the trip can't be loaded -->
+  <div id="page-error" hidden>
+    <p id="page-error-message" class="error"></p>
+    <p><a href="index.html">Back to your trips</a></p>
+  </div>
+
+  <div id="trip-page" hidden>
+    <h1 id="trip-name"></h1>
+    <p id="trip-meta" class="trip-meta"></p>
+
+    <section>
+      <h2>Schedule</h2>
+      <p id="list-error" class="error" hidden></p>
+      <p id="empty" class="empty" hidden>No items yet. Add the first one with the form below.</p>
+      <ol id="item-list" class="item-list"></ol>
+    </section>
+
+    <section>
+      <h2 id="form-title">Add an item</h2>
+      <!-- Each input's name matches its JSON key (e.g. "location.latitude"), so the server's
+           validation errors can be matched to their inputs. -->
+      <form id="item-form" novalidate>
+        <div class="field">
+          <label for="type">Type</label>
+          <select id="type" name="type">
+            <option value="activity">Activity</option>
+            <option value="reservation">Reservation</option>
+            <option value="transportation">Transportation</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text">
+          <div class="field-error" data-error-for="title"></div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="startTime">Start time</label>
+            <input id="startTime" name="startTime" type="time">
+            <div class="field-error" data-error-for="startTime"></div>
+          </div>
+          <div class="field">
+            <label for="endTime">End time</label>
+            <input id="endTime" name="endTime" type="time">
+            <div class="field-error" data-error-for="endTime"></div>
+          </div>
+        </div>
+        <div class="field-error" data-error-for="timeRangeValid"></div>
+
+        <!-- Place: activity and reservation -->
+        <fieldset data-types="activity reservation">
+          <legend>Place</legend>
+          <div class="field">
+            <label for="location.name">Name</label>
+            <input id="location.name" name="location.name" type="text">
+            <div class="field-error" data-error-for="location.name"></div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="location.latitude">Latitude</label>
+              <input id="location.latitude" name="location.latitude" type="number" step="any">
+              <div class="field-error" data-error-for="location.latitude"></div>
+            </div>
+            <div class="field">
+              <label for="location.longitude">Longitude</label>
+              <input id="location.longitude" name="location.longitude" type="number" step="any">
+              <div class="field-error" data-error-for="location.longitude"></div>
+            </div>
+          </div>
+          <div class="hint">Tip: right-click a spot in Google Maps and click the first line of the menu to copy its coordinates.</div>
+          <div class="row">
+            <div class="field">
+              <label for="location.openTime">Opens (optional)</label>
+              <input id="location.openTime" name="location.openTime" type="time">
+              <div class="field-error" data-error-for="location.openTime"></div>
+            </div>
+            <div class="field">
+              <label for="location.closeTime">Closes (optional)</label>
+              <input id="location.closeTime" name="location.closeTime" type="time">
+              <div class="field-error" data-error-for="location.closeTime"></div>
+            </div>
+          </div>
+          <div class="field-error" data-error-for="location.hoursValid"></div>
+        </fieldset>
+
+        <!-- Activity only -->
+        <div class="field" data-types="activity">
+          <label for="category">Category (optional)</label>
+          <input id="category" name="category" type="text" placeholder="art, food, park…">
+          <div class="field-error" data-error-for="category"></div>
+        </div>
+
+        <!-- Reservation only -->
+        <div class="row" data-types="reservation">
+          <div class="field">
+            <label for="confirmationCode">Confirmation code (optional)</label>
+            <input id="confirmationCode" name="confirmationCode" type="text">
+            <div class="field-error" data-error-for="confirmationCode"></div>
+          </div>
+          <div class="field">
+            <label for="partySize">Party size (optional)</label>
+            <input id="partySize" name="partySize" type="number" min="1" step="1">
+            <div class="field-error" data-error-for="partySize"></div>
+          </div>
+        </div>
+
+        <!-- Transportation only -->
+        <fieldset data-types="transportation">
+          <legend>From</legend>
+          <div class="field">
+            <label for="origin.name">Name</label>
+            <input id="origin.name" name="origin.name" type="text">
+            <div class="field-error" data-error-for="origin.name"></div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="origin.latitude">Latitude</label>
+              <input id="origin.latitude" name="origin.latitude" type="number" step="any">
+              <div class="field-error" data-error-for="origin.latitude"></div>
+            </div>
+            <div class="field">
+              <label for="origin.longitude">Longitude</label>
+              <input id="origin.longitude" name="origin.longitude" type="number" step="any">
+              <div class="field-error" data-error-for="origin.longitude"></div>
+            </div>
+          </div>
+          <div class="hint">Tip: right-click a spot in Google Maps and click the first line of the menu to copy its coordinates.</div>
+        </fieldset>
+
+        <fieldset data-types="transportation">
+          <legend>To</legend>
+          <div class="field">
+            <label for="destination.name">Name</label>
+            <input id="destination.name" name="destination.name" type="text">
+            <div class="field-error" data-error-for="destination.name"></div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="destination.latitude">Latitude</label>
+              <input id="destination.latitude" name="destination.latitude" type="number" step="any">
+              <div class="field-error" data-error-for="destination.latitude"></div>
+            </div>
+            <div class="field">
+              <label for="destination.longitude">Longitude</label>
+              <input id="destination.longitude" name="destination.longitude" type="number" step="any">
+              <div class="field-error" data-error-for="destination.longitude"></div>
+            </div>
+          </div>
+          <div class="hint">Tip: right-click a spot in Google Maps and click the first line of the menu to copy its coordinates.</div>
+        </fieldset>
+
+        <div class="field" data-types="transportation">
+          <label for="mode">Mode</label>
+          <select id="mode" name="mode">
+            <option value="WALK">Walk</option>
+            <option value="DRIVE">Drive</option>
+            <option value="TRANSIT">Transit</option>
+            <option value="BICYCLE">Bicycle</option>
+          </select>
+          <div class="field-error" data-error-for="mode"></div>
+        </div>
+
+        <div class="field">
+          <label for="notes">Notes (optional)</label>
+          <input id="notes" name="notes" type="text">
+          <div class="field-error" data-error-for="notes"></div>
+        </div>
+
+        <p id="form-error" class="error" hidden></p>
+        <button id="submit-button" type="submit">Add item</button>
+        <button id="cancel-button" type="button" hidden>Cancel</button>
+      </form>
+    </section>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/trip.js"></script>
+</body>
+</html>
