@@ -185,3 +185,34 @@ legend {
   font-weight: 600;
   padding: 0 4px;
 }
+
+/* Feasibility check */
+
+.ok {
+  color: #1b5e20;
+  font-weight: 600;
+}
+
+.conflict-list li {
+  margin-bottom: 6px;
+}
+
+.item-list li.has-conflict {
+  background: #fff4f4;
+  box-shadow: inset 3px 0 0 #b00020;
+}
+
+.conflict-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.conflict-tag {
+  font-size: 0.8em;
+  color: #b00020;
+  border: 1px solid #b00020;
+  border-radius: 10px;
+  padding: 0 8px;
+}

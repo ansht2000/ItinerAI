@@ -29,6 +29,18 @@
     </section>
 
     <section>
+      <h2>Feasibility</h2>
+      <p>Checks for overlapping items, enough travel time between stops, and opening hours.</p>
+      <button id="check-button" type="button">Check feasibility</button>
+      <p id="check-status" hidden>Checking travel times…</p>
+      <p id="check-error" class="error" hidden></p>
+      <div id="check-results" hidden>
+        <p id="check-ok" class="ok" hidden>No conflicts found. This day works.</p>
+        <ol id="conflict-list" class="conflict-list"></ol>
+      </div>
+    </section>
+
+    <section>
       <h2 id="form-title">Add an item</h2>
       <!-- Each input's name matches its JSON key (e.g. "location.latitude"), so the server's
            validation errors can be matched to their inputs. -->

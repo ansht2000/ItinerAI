@@ -17,7 +17,20 @@ const formErrorEl = document.getElementById("form-error");
 const submitButton = document.getElementById("submit-button");
 const cancelButton = document.getElementById("cancel-button");
 
+const checkButton = document.getElementById("check-button");
+const checkStatusEl = document.getElementById("check-status");
+const checkErrorEl = document.getElementById("check-error");
+const checkResultsEl = document.getElementById("check-results");
+const checkOkEl = document.getElementById("check-ok");
+const conflictListEl = document.getElementById("conflict-list");
+
 const TYPE_LABELS = { activity: "Activity", reservation: "Reservation", transportation: "Transportation" };
+
+const CONFLICT_LABELS = {
+  OVERLAP: "Overlap",
+  INSUFFICIENT_TRAVEL_TIME: "Not enough travel time",
+  OUTSIDE_OPERATING_HOURS: "Outside opening hours",
+};
 
 // The id of the item being edited, or null when the form is adding a new item
 let editingId = null;
@@ -87,6 +100,7 @@ function addLine(parent, className, text) {
 
 function renderItem(item) {
   const li = document.createElement("li");
+  li.dataset.itemId = item.id; // lets the feasibility check find this item to highlight it
 
   const info = document.createElement("div");
   addLine(info, "item-time", `${hhmm(item.startTime)}–${hhmm(item.endTime)} · ${TYPE_LABELS[item.type] || item.type}`);
@@ -144,7 +158,87 @@ async function deleteItem(item, button) {
   if (editingId === item.id) {
     stopEditing();
   }
+  clearFeasibility();
   await loadTrip();
+}
+
+// ---------- Feasibility check ----------
+
+// Goes up by one whenever results are cleared, so a check that finishes after an edit is ignored.
+let checkRun = 0;
+
+function conflictLabel(type) {
+  return CONFLICT_LABELS[type] || type;
+}
+
+async function checkFeasibility() {
+  clearFeasibility();
+  const run = checkRun;
+  checkButton.disabled = true;
+  checkStatusEl.hidden = false;
+  try {
+    const result = await api.post("/api/trips/" + encodeURIComponent(tripId) + "/feasibility");
+    if (run === checkRun) {
+      showFeasibility(result.conflicts);
+    }
+  } catch (error) {
+    if (run === checkRun) {
+      showMessage(checkErrorEl, "Couldn't check the trip: " + error.detail);
+    }
+  } finally {
+    checkButton.disabled = false;
+    checkStatusEl.hidden = true;
+  }
+}
+
+checkButton.addEventListener("click", checkFeasibility);
+
+function showFeasibility(conflicts) {
+  checkResultsEl.hidden = false;
+  checkOkEl.hidden = conflicts.length > 0;
+
+  conflicts.forEach((conflict, index) => {
+    const number = index + 1;
+
+    const li = document.createElement("li");
+    const label = document.createElement("strong");
+    label.textContent = conflictLabel(conflict.type) + ": ";
+    li.append(label, conflict.reason);
+    conflictListEl.append(li);
+
+    // Highlight each item involved and note which conflict it's part of
+    for (const itemId of conflict.itemIds) {
+      const itemEl = listEl.querySelector(`[data-item-id="${itemId}"]`);
+      if (!itemEl) {
+        continue;
+      }
+      itemEl.classList.add("has-conflict");
+      let tagsEl = itemEl.querySelector(".conflict-tags");
+      if (!tagsEl) {
+        tagsEl = document.createElement("div");
+        tagsEl.className = "conflict-tags";
+        itemEl.firstChild.append(tagsEl);
+      }
+      const tag = document.createElement("span");
+      tag.className = "conflict-tag";
+      tag.textContent = `Conflict ${number}: ${conflictLabel(conflict.type)}`;
+      tagsEl.append(tag);
+    }
+  });
+}
+
+// Results go stale after any change to the items, so remove them and the highlights.
+function clearFeasibility() {
+  checkRun++;
+  checkResultsEl.hidden = true;
+  checkErrorEl.hidden = true;
+  conflictListEl.replaceChildren();
+  for (const el of listEl.querySelectorAll(".has-conflict")) {
+    el.classList.remove("has-conflict");
+  }
+  for (const el of listEl.querySelectorAll(".conflict-tags")) {
+    el.remove();
+  }
 }
 
 // ---------- The item form ----------
@@ -288,6 +382,7 @@ form.addEventListener("submit", async (event) => {
       await api.put(itemsUrl + "/" + encodeURIComponent(editingId), item);
     }
     stopEditing();
+    clearFeasibility();
     await loadTrip();
   } catch (error) {
     showErrors(error);
