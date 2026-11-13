@@ -103,9 +103,28 @@ function addLine(parent, className, text) {
 function renderItem(item, withButtons) {
   const li = document.createElement("li");
   li.dataset.itemId = item.id; // lets the feasibility check find this item to highlight it
+  li.dataset.type = item.type; // lets the CSS draw a marker for the item's type
 
+  // info must stay the first child: the feasibility check adds its conflict tags to it
   const info = document.createElement("div");
-  addLine(info, "item-time", `${hhmm(item.startTime)}–${hhmm(item.endTime)} · ${TYPE_LABELS[item.type] || item.type}`);
+  info.className = "item-body";
+
+  // Start and end time, shown in the timeline's left column. The dash is only for screen readers.
+  const when = document.createElement("div");
+  when.className = "item-when";
+  const start = document.createElement("span");
+  start.className = "item-start";
+  start.textContent = hhmm(item.startTime);
+  const dash = document.createElement("span");
+  dash.className = "visually-hidden";
+  dash.textContent = " to ";
+  const end = document.createElement("span");
+  end.className = "item-end";
+  end.textContent = hhmm(item.endTime);
+  when.append(start, dash, end);
+  info.append(when);
+
+  addLine(info, "item-type", TYPE_LABELS[item.type] || item.type);
   addLine(info, "item-title", item.title);
 
   if (item.type === "transportation") {
