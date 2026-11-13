@@ -11,6 +11,17 @@ docker compose up -d
 
 `docker compose up -d` starts a local PostgreSQL that matches the defaults in `application.properties`. To use a different database, set `DB_URL`, `DB_USERNAME` and `DB_PASSWORD`.
 
+## Web UI
+
+Once the app is running, open http://localhost:8080/.
+
+- **Trips page:** create, open and delete trips.
+- **Trip day page:** view the day's items as a timeline and add, edit or delete them (activities, reservations and transportation). **Check feasibility** lists any conflicts and highlights the items involved. **Optimize with AI** asks the agent for a proposal, which you can refine with feedback, then apply or discard.
+
+The UI is plain HTML, CSS and JavaScript in `ItinerAI/src/main/resources/static/`, served by Spring Boot alongside the API, so there's no separate build or server. After editing those files, rebuild (Build → Build Project in IntelliJ) or restart the app, then refresh the page.
+
+Coordinates are entered by hand; right-click a spot in Google Maps to copy its latitude and longitude.
+
 ### Google Routes API key
 
 Travel times come from the Google Routes API. The easiest way to give the app your key is a file named `.env` in the `ItinerAI/` folder (next to `pom.xml`) containing one line:
