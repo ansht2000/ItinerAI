@@ -4,63 +4,72 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ItinerAI – Trips</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>ItinerAI</h1>
+  <header class="site-header">
+    <a class="brand" href="index.html">ItinerAI</a>
+  </header>
 
-  <section>
-    <h2>Your trips</h2>
-    <p id="list-error" class="error" hidden></p>
-    <p id="loading">Loading trips…</p>
-    <p id="empty" class="empty" hidden>No trips yet. Create your first one with the form below.</p>
-    <ul id="trip-list" class="trip-list"></ul>
-  </section>
+  <main class="page">
+    <section class="panel">
+      <h1>Your trips</h1>
+      <p id="list-error" class="error" hidden></p>
+      <p id="loading" class="status">Loading trips…</p>
+      <p id="empty" class="empty" hidden>No trips yet. Create your first one with the form below.</p>
+      <ul id="trip-list" class="trip-list"></ul>
+    </section>
 
-  <section>
-    <h2>New trip</h2>
-    <!-- novalidate: let the server's validation messages show instead of the browser's pop-ups -->
-    <form id="trip-form" novalidate>
-      <div class="field">
-        <label for="name">Name</label>
-        <input id="name" name="name" type="text" placeholder="Paris day">
-        <div class="field-error" data-error-for="name"></div>
-      </div>
+    <section class="panel">
+      <h2>New trip</h2>
+      <!-- novalidate: let the server's validation messages show instead of the browser's pop-ups -->
+      <form id="trip-form" novalidate>
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" placeholder="Paris day">
+          <div class="field-error" data-error-for="name"></div>
+        </div>
 
-      <div class="field">
-        <label for="destination">Destination</label>
-        <input id="destination" name="destination" type="text" placeholder="Paris">
-        <div class="field-error" data-error-for="destination"></div>
-      </div>
+        <div class="field">
+          <label for="destination">Destination</label>
+          <input id="destination" name="destination" type="text" placeholder="Paris">
+          <div class="field-error" data-error-for="destination"></div>
+        </div>
 
-      <div class="field">
-        <label for="date">Date</label>
-        <input id="date" name="date" type="date">
-        <div class="field-error" data-error-for="date"></div>
-      </div>
+        <div class="field">
+          <label for="date">Date</label>
+          <input id="date" name="date" type="date">
+          <div class="field-error" data-error-for="date"></div>
+        </div>
 
-      <div class="field">
-        <label for="timeZone">Time zone</label>
-        <input id="timeZone" name="timeZone" type="text" placeholder="Europe/Paris">
-        <div class="hint">An IANA name such as Europe/Paris or America/Los_Angeles.</div>
-        <div class="field-error" data-error-for="timeZone"></div>
-      </div>
+        <div class="field">
+          <label for="timeZone">Time zone</label>
+          <input id="timeZone" name="timeZone" type="text" placeholder="Europe/Paris">
+          <div class="hint">An IANA name such as Europe/Paris or America/Los_Angeles.</div>
+          <div class="field-error" data-error-for="timeZone"></div>
+        </div>
 
-      <div class="field">
-        <label for="defaultTravelMode">Default travel mode</label>
-        <select id="defaultTravelMode" name="defaultTravelMode">
-          <option value="WALK">Walk</option>
-          <option value="DRIVE">Drive</option>
-          <option value="TRANSIT">Transit</option>
-          <option value="BICYCLE">Bicycle</option>
-        </select>
-        <div class="field-error" data-error-for="defaultTravelMode"></div>
-      </div>
+        <div class="field">
+          <label for="defaultTravelMode">Default travel mode</label>
+          <select id="defaultTravelMode" name="defaultTravelMode">
+            <option value="WALK">Walk</option>
+            <option value="DRIVE">Drive</option>
+            <option value="TRANSIT">Transit</option>
+            <option value="BICYCLE">Bicycle</option>
+          </select>
+          <div class="field-error" data-error-for="defaultTravelMode"></div>
+        </div>
 
-      <p id="form-error" class="error" hidden></p>
-      <button id="create-button" type="submit">Create trip</button>
-    </form>
-  </section>
+        <p id="form-error" class="error" hidden></p>
+        <div class="actions">
+          <button id="create-button" class="primary" type="submit">Create trip</button>
+        </div>
+      </form>
+    </section>
+  </main>
 
   <script src="js/api.js"></script>
   <script src="js/trips.js"></script>
