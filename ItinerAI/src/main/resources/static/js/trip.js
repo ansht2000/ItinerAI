@@ -70,8 +70,9 @@ function renderTrip(trip) {
   listEl.replaceChildren();
   emptyEl.hidden = trip.items.length > 0;
   for (const item of trip.items) {
-    listEl.append(renderItem(item));
+    listEl.append(renderItem(item, true));
   }
+  renderLocks(trip.items);
 }
 
 // "10:00:00" -> "10:00"
@@ -98,7 +99,8 @@ function addLine(parent, className, text) {
   parent.append(el);
 }
 
-function renderItem(item) {
+// withButtons is false for the AI's proposed day, which can't be edited directly
+function renderItem(item, withButtons) {
   const li = document.createElement("li");
   li.dataset.itemId = item.id; // lets the feasibility check find this item to highlight it
 
@@ -122,6 +124,10 @@ function renderItem(item) {
     addLine(info, "item-detail", parts.join(" · "));
   }
   addLine(info, "item-notes", item.notes);
+  li.append(info);
+  if (!withButtons) {
+    return li;
+  }
 
   const buttons = document.createElement("div");
   buttons.className = "item-buttons";
@@ -136,7 +142,7 @@ function renderItem(item) {
   deleteButton.addEventListener("click", () => deleteItem(item, deleteButton));
   buttons.append(editButton, deleteButton);
 
-  li.append(info, buttons);
+  li.append(buttons);
   return li;
 }
 
@@ -158,8 +164,15 @@ async function deleteItem(item, button) {
   if (editingId === item.id) {
     stopEditing();
   }
-  clearFeasibility();
+  clearStaleResults();
   await loadTrip();
+}
+
+// After any change to the items, feasibility results and AI proposals no longer match the trip.
+function clearStaleResults() {
+  clearFeasibility();
+  clearProposal();
+  agentErrorEl.hidden = true;
 }
 
 // ---------- Feasibility check ----------
@@ -169,6 +182,15 @@ let checkRun = 0;
 
 function conflictLabel(type) {
   return CONFLICT_LABELS[type] || type;
+}
+
+// One conflict as a list item: "Overlap: <reason>". Also used by the AI panel.
+function renderConflict(conflict) {
+  const li = document.createElement("li");
+  const label = document.createElement("strong");
+  label.textContent = conflictLabel(conflict.type) + ": ";
+  li.append(label, conflict.reason);
+  return li;
 }
 
 async function checkFeasibility() {
@@ -200,11 +222,7 @@ function showFeasibility(conflicts) {
   conflicts.forEach((conflict, index) => {
     const number = index + 1;
 
-    const li = document.createElement("li");
-    const label = document.createElement("strong");
-    label.textContent = conflictLabel(conflict.type) + ": ";
-    li.append(label, conflict.reason);
-    conflictListEl.append(li);
+    conflictListEl.append(renderConflict(conflict));
 
     // Highlight each item involved and note which conflict it's part of
     for (const itemId of conflict.itemIds) {
@@ -382,7 +400,7 @@ form.addEventListener("submit", async (event) => {
       await api.put(itemsUrl + "/" + encodeURIComponent(editingId), item);
     }
     stopEditing();
-    clearFeasibility();
+    clearStaleResults();
     await loadTrip();
   } catch (error) {
     showErrors(error);
@@ -438,6 +456,293 @@ function showErrors(error) {
 function showMessage(el, message) {
   el.textContent = message;
   el.hidden = false;
+}
+
+// ---------- Optimize with AI ----------
+//
+// The flow (see UI_INFO.md, "The AI agent"): Optimize makes a proposal; Refine sends feedback and gets
+// a new proposal; Apply saves it; Discard drops it. Nothing is saved until Apply.
+
+const agentInputsEl = document.getElementById("agent-inputs");
+const goalInput = document.getElementById("goal");
+const lockListEl = document.getElementById("lock-list");
+const allowRemovalsInput = document.getElementById("allow-removals");
+const optimizeButton = document.getElementById("optimize-button");
+const agentStatusEl = document.getElementById("agent-status");
+const agentErrorEl = document.getElementById("agent-error");
+const proposalEl = document.getElementById("proposal");
+const feedbackInput = document.getElementById("feedback");
+const refineButton = document.getElementById("refine-button");
+const applyButton = document.getElementById("apply-button");
+const discardButton = document.getElementById("discard-button");
+
+// Which items the user has locked, by id. Items not in here use the default: reservations are locked.
+const locks = new Map();
+
+// While a proposal is open: the request that made it (goal, locks, allowRemovals), its response,
+// and every feedback message sent so far. All null/empty when there's no proposal.
+let agentRequest = null;
+let proposal = null;
+let feedbackHistory = [];
+
+// Goes up by one whenever the proposal is cleared, so a run that finishes after an edit is ignored.
+let agentRun = 0;
+
+function renderLocks(items) {
+  lockListEl.replaceChildren();
+  if (items.length === 0) {
+    lockListEl.textContent = "No items yet.";
+  }
+  for (const item of items) {
+    const label = document.createElement("label");
+    label.className = "checkbox";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = locks.has(item.id) ? locks.get(item.id) : item.type === "reservation";
+    checkbox.dataset.itemId = item.id;
+    checkbox.addEventListener("change", () => locks.set(item.id, checkbox.checked));
+    label.append(checkbox, ` ${hhmm(item.startTime)} ${item.title}`);
+    lockListEl.append(label);
+  }
+}
+
+// The options from the panel. lockedItemIds is always sent, even when empty, so the server
+// never falls back to its own default.
+function readAgentRequest() {
+  const lockedItemIds = [];
+  for (const checkbox of lockListEl.querySelectorAll("input[type=checkbox]")) {
+    if (checkbox.checked) {
+      lockedItemIds.push(Number(checkbox.dataset.itemId));
+    }
+  }
+  const request = { lockedItemIds, allowRemovals: allowRemovalsInput.checked };
+  const goal = goalInput.value.trim();
+  if (goal !== "") {
+    request.goal = goal;
+  }
+  return request;
+}
+
+// Disables every agent button (and the inputs) while a run is going
+function setAgentBusy(busy) {
+  optimizeButton.disabled = busy;
+  refineButton.disabled = busy;
+  discardButton.disabled = busy;
+  applyButton.disabled = busy || !proposal || proposal.changes.length === 0;
+  agentStatusEl.hidden = !busy;
+}
+
+let timerId = null;
+
+function startTimer(message) {
+  const started = Date.now();
+  const update = () => {
+    const seconds = Math.round((Date.now() - started) / 1000);
+    agentStatusEl.textContent = `${message} ${seconds}s (this can take up to about 90 seconds)`;
+  };
+  update();
+  timerId = setInterval(update, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerId);
+}
+
+// Sends one optimize request (a first run or a refine) and shows the result.
+// feedback is the full history including the new message; it's only kept if the run succeeds.
+// Returns true on success, false on an error, and null if the trip was edited while it ran.
+async function runAgent(body, feedback, statusMessage) {
+  const run = agentRun;
+  agentErrorEl.hidden = true;
+  setAgentBusy(true);
+  startTimer(statusMessage);
+  try {
+    const result = await api.post("/api/trips/" + encodeURIComponent(tripId) + "/optimize", body);
+    if (run !== agentRun) {
+      return null; // the trip was edited while this ran, so the result is stale
+    }
+    feedbackHistory = feedback;
+    showProposal(result);
+    return true;
+  } catch (error) {
+    if (run !== agentRun) {
+      return null;
+    }
+    showAgentError(error);
+    return false;
+  } finally {
+    // If the proposal was cleared meanwhile, clearProposal already reset these, and a newer run may own them.
+    if (run === agentRun) {
+      stopTimer();
+      setAgentBusy(false);
+    }
+  }
+}
+
+async function optimize() {
+  clearProposal();
+  agentRequest = readAgentRequest();
+  agentInputsEl.disabled = true; // the goal and locks can't change while a proposal is open
+  if (await runAgent(agentRequest, [], "Optimizing…") === false) {
+    clearProposal(); // keeps the error message, but unlocks the inputs so the user can try again
+  }
+}
+
+optimizeButton.addEventListener("click", optimize);
+
+refineButton.addEventListener("click", async () => {
+  const message = feedbackInput.value.trim();
+  if (message === "") {
+    showMessage(agentErrorEl, "Write some feedback first, then click Refine.");
+    return;
+  }
+  const feedback = [...feedbackHistory, message];
+  const body = { ...agentRequest, changes: proposal.changes, feedback };
+  if (await runAgent(body, feedback, "Refining…")) {
+    feedbackInput.value = "";
+  }
+});
+
+applyButton.addEventListener("click", async () => {
+  const run = agentRun;
+  agentErrorEl.hidden = true;
+  setAgentBusy(true);
+  agentStatusEl.textContent = "Saving the changes…";
+  try {
+    await api.post("/api/trips/" + encodeURIComponent(tripId) + "/optimize/apply", { changes: proposal.changes });
+    if (run !== agentRun) {
+      return;
+    }
+    clearStaleResults();
+    await loadTrip();
+  } catch (error) {
+    if (run === agentRun) {
+      showAgentError(error);
+    }
+  } finally {
+    if (run === agentRun) {
+      setAgentBusy(false);
+    }
+  }
+});
+
+discardButton.addEventListener("click", () => {
+  clearProposal();
+  agentErrorEl.hidden = true;
+});
+
+function clearProposal() {
+  agentRun++;
+  agentRequest = null;
+  proposal = null;
+  feedbackHistory = [];
+  feedbackInput.value = "";
+  proposalEl.hidden = true;
+  optimizeButton.hidden = false;
+  agentInputsEl.disabled = false;
+  stopTimer();
+  setAgentBusy(false);
+}
+
+function showAgentError(error) {
+  agentErrorEl.replaceChildren();
+  let message;
+  if (error.status === 409) {
+    // Nothing was written. The proposal is out of date, so drop it and offer a fresh run.
+    clearProposal();
+    message = `The trip changed since this proposal was made, so nothing was saved (${error.detail}).`;
+  } else if (error.status === 503) {
+    message = "The AI assistant is unavailable right now. " + error.detail;
+  } else if (error.status === 502) {
+    message = "Travel times couldn't be checked, so the AI can't plan the day right now. " + error.detail;
+  } else {
+    message = error.detail;
+    const fieldMessages = Object.entries(error.errors).map(([field, reason]) => `${field}: ${reason}`);
+    if (fieldMessages.length > 0) {
+      message += "\n" + fieldMessages.join("\n");
+    }
+  }
+  agentErrorEl.append(message);
+
+  if (error.status === 409) {
+    const again = document.createElement("button");
+    again.type = "button";
+    again.textContent = "Optimize again";
+    again.addEventListener("click", async () => {
+      agentErrorEl.hidden = true;
+      await loadTrip(); // pick up whatever changed
+      await optimize();
+    });
+    agentErrorEl.append(" ", again);
+  }
+  agentErrorEl.hidden = false;
+}
+
+function showProposal(result) {
+  proposal = result;
+  proposalEl.hidden = false;
+  optimizeButton.hidden = true; // Refine, Apply or Discard from here
+
+  document.getElementById("proposal-summary").textContent = result.summary;
+
+  const feasibleEl = document.getElementById("proposal-feasible");
+  feasibleEl.textContent = result.feasible
+    ? "The proposed day has no conflicts."
+    : `The proposed day still has ${result.conflictsAfter.length} conflict(s).`;
+  feasibleEl.className = result.feasible ? "ok" : "error";
+
+  document.getElementById("proposal-unfinished").hidden = result.finished;
+
+  const changesEl = document.getElementById("proposal-changes");
+  changesEl.replaceChildren();
+  if (result.changes.length === 0) {
+    changesEl.append(emptyNote("No changes proposed."));
+  }
+  for (const change of result.changes) {
+    const li = document.createElement("li");
+    const title = document.createElement("strong");
+    title.textContent = change.title;
+    const before = `${hhmm(change.before.startTime)}–${hhmm(change.before.endTime)}`;
+    const after = change.after ? `${hhmm(change.after.startTime)}–${hhmm(change.after.endTime)}` : "removed";
+    li.append(title, `: ${before} → ${after}`);
+    addLine(li, "item-notes", change.reason);
+    changesEl.append(li);
+  }
+
+  renderConflicts(document.getElementById("conflicts-before"), result.conflictsBefore);
+  renderConflicts(document.getElementById("conflicts-after"), result.conflictsAfter);
+
+  const daysEl = document.getElementById("proposal-items");
+  daysEl.replaceChildren();
+  for (const item of result.items) {
+    daysEl.append(renderItem(item, false));
+  }
+
+  const historyEl = document.getElementById("feedback-history");
+  historyEl.replaceChildren();
+  for (const message of feedbackHistory) {
+    const li = document.createElement("li");
+    li.textContent = message;
+    historyEl.append(li);
+  }
+  document.getElementById("feedback-history-block").hidden = feedbackHistory.length === 0;
+}
+
+function renderConflicts(listElement, conflicts) {
+  listElement.replaceChildren();
+  if (conflicts.length === 0) {
+    listElement.append(emptyNote("None."));
+  }
+  for (const conflict of conflicts) {
+    listElement.append(renderConflict(conflict));
+  }
+}
+
+function emptyNote(text) {
+  const li = document.createElement("li");
+  li.className = "empty";
+  li.textContent = text;
+  return li;
 }
 
 // ---------- Start ----------
